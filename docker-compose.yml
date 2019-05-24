@@ -1,0 +1,46 @@
+version: '3.1'
+
+services:
+  app:
+    container_name: orderservice_app
+    image: enrico5b1b4/orderservice_app
+    restart: always
+    environment:
+      PORT: 8001
+      COMPLETE_ORDER_CALLBACK_URL: http://app:8001/complete_order
+      POSTGRES_DSN: postgres://postgres:example@db:5432/orderservice?sslmode=disable
+      ORDER_PROCESS_SERVICE_URL: http://order_process_service:8000
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db
+      - order_process_service
+
+  db:
+    container_name: orderservice_postgres96
+    image: postgres:9.6
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: orderservice
+    ports:
+      - "5432:5432"
+
+  adminer:
+    container_name: orderservice_adminer
+    image: adminer
+    restart: always
+    ports:
+      - "9000:8080"
+    depends_on:
+      - db
+
+  order_process_service:
+    container_name: orderservice_order_process_service
+    image: eggsbenjamin/order_process_service
+    restart: always
+    environment:
+      MAX_ORDER_PROCESS_DURATION: 15
+    ports:
+      - "8000:8000"
