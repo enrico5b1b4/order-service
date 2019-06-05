@@ -11,7 +11,7 @@ import (
 )
 
 func TestAPICreateOrder_Success(t *testing.T) {
-	test.CheckSkipTest(t)
+	//test.CheckSkipTest(t)
 	ID := uuid.NewV4()
 
 	test.ApiTest().

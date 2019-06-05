@@ -1,7 +1,10 @@
 package test
 
 import (
+	"database/sql"
 	"fmt"
+	"github.com/steinfletcher/apitest"
+	apitestdb "github.com/steinfletcher/apitest/x/db"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,24 +21,29 @@ import (
 
 var DSN string
 var testDB *sqlx.DB
+var testDBSetup *sqlx.DB
 var err error
+var recorder *apitest.Recorder
 
 // Get correct path for migrations
 var _, b, _, _ = runtime.Caller(0)
 var basepath = filepath.Dir(b)
 
 func init() {
-	DSN = os.Getenv("POSTGRES_TEST_DSN")
+	DSN = "postgres://postgres:example@localhost:5433/orderservice?sslmode=disable"
+	recorder = apitest.NewTestRecorder()
+	wrappedDriver := apitestdb.WrapWithRecorder("postgres", recorder)
+	sql.Register("wrappedPostgres", wrappedDriver)
 
-	if DSN != "" && testDB == nil {
-		testDB, err = sqlx.Connect("postgres", DSN)
+	if DSN != "" && testDB == nil && testDBSetup == nil {
+		testDBSetup, err = sqlx.Connect("postgres", DSN)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		_ = waitForDB(testDB)
+		_ = waitForDB(testDBSetup)
 
 		// migration
-		driver, err := postgres.WithInstance(testDB.DB, &postgres.Config{})
+		driver, err := postgres.WithInstance(testDBSetup.DB, &postgres.Config{})
 		migrationsDirectory := fmt.Sprintf("file://%s/../migrations", basepath)
 		m, err := migrate.NewWithDatabaseInstance(migrationsDirectory, "postgres", driver)
 		if err != nil {
@@ -43,12 +51,19 @@ func init() {
 		}
 
 		_ = m.Up()
+
+		testDB, err = sqlx.Connect("wrappedPostgres", DSN)
+		//testDB, err = sqlx.Connect("postgres", DSN)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		_ = waitForDB(testDB)
 	}
 }
 
 func DBSetup(setup func(db *sqlx.DB)) *sqlx.DB {
-	setup(testDB)
-	return testDB
+	setup(testDBSetup)
+	return testDBSetup
 }
 
 func DBConnect() *sqlx.DB {

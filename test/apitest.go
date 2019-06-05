@@ -14,5 +14,7 @@ func ApiTest() *apitest.APITest {
 	)
 
 	return apitest.New("").
-		Handler(orderServiceApp)
+		Handler(orderServiceApp).
+		Recorder(recorder).
+		Report(apitest.SequenceDiagram())
 }
